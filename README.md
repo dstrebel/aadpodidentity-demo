@@ -1,4 +1,29 @@
-# AAD Pod Identity Demo
+# AAD Pod Identity Overview
+
+When pods need access to other Azure services, such as Cosmos DB, Key Vault, or Blob Storage, the pod needs access credentials. These access credentials could be defined with the container image or injected as a Kubernetes secret, but need to be manually created and assigned. Often, the credentials are reused across pods, and aren't regularly rotated.
+
+Managed identities for Azure resources let you automatically request access to services through Azure AD. You don't manually define credentials for pods, instead they request an access token in real time, and can use it to access only their assigned services. In AKS, two components are deployed by the cluster operator to allow pods to use managed identities:
+
+AAD Pod Identity also allows admins to switch underlying identities at runtime without developers making any changes to the application.
+
+There are two required components to enable aad pod identity:
+
+- Managed Identity Controller (MIC) - The controller is responsible for the binding of Azure identities to the pods.
+- Node Managed Identity (NMI) - Intercepts incoming request for pods and calls back into Azure to acquire access tokens from AAD. This allows communication with the Azure APIs on behalf of the Azure identity.
+
+The example below describes the workflow that uses managed service identity to request access to Azure SQL:
+
+1. Cluster Operator creates azureIdentity referencing a MSI
+2. Cluster Operator creates azureIdentityBinding
+3. MIC watches AzureIdentityBinding and Pods, then creates a azureAssignedIdentity
+4. MIC watches pods and assigns MSI to nodes where the pod is scheduled
+5. Pod uses ADAL to acquire token
+6. The call is then picked up by NMI and uses the pod name to find identity assigned to it
+7. NMI calls the nodes MSI endpoint to acquire token on behalf of the pod
+
+![AAD Pod Identity](img/pod-identities.png)
+
+## AAD Pod Identity Demo
 
 Note: Variable values that begin with __ (two underscores) should be populated from the previous command's output. Other values can be named whatever makes sense.
 
@@ -50,7 +75,7 @@ az keyvault secret set --vault-name $KEYVAULT_NAME -n Secret2 --value SuparSecre
 ## Install AAD Pod Identity CRD (RBAC version)
 
 ```sh
-k create -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
+kubectl create -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
 ```
 
 ## Create Azure Managed Identity
